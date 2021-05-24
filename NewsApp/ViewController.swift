@@ -18,6 +18,8 @@ class ViewController: UIViewController {
         table.register(NewsTableViewCell.self, forCellReuseIdentifier: NewsTableViewCell.identifier)
         return table
     }()
+    
+    var searchVC = UISearchController(searchResultsController: nil)
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -27,7 +29,13 @@ class ViewController: UIViewController {
         tableView.frame = view.bounds
         tableView.delegate = self
         tableView.dataSource = self
+        configSearchBar()
         fetchTopStroies()
+    }
+    
+    func configSearchBar(){
+        navigationItem.searchController = searchVC
+        searchVC.searchBar.delegate = self
     }
 
     func fetchTopStroies(){
@@ -80,6 +88,29 @@ extension ViewController: UITableViewDataSource{
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 150
+    }
+}
+
+extension ViewController: UISearchBarDelegate{
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        guard let text = searchBar.text, !text.isEmpty else {
+            return
+        }
+        APICaller.instanse.search(with: text) { [weak self](result) in
+            switch result{
+            case .success(let articles):
+                self?.articles = articles.articles
+                self?.viewModel = articles.articles.compactMap({
+                    NewsTableViewCellViewModel(title: $0.title, subTitle: $0.description ?? "No Description", imageURL: URL(string: $0.urlToImage ?? ""))
+                })
+                    DispatchQueue.main.async {
+                        self?.tableView.reloadData()
+                        self?.searchVC.dismiss(animated: true, completion: nil)
+                    }
+                case .failure(let error):
+                print(error)
+            }
+        }
     }
 }
 
